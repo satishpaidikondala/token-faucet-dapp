@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import "./App.css";
 import {
   connectWallet,
@@ -22,52 +22,44 @@ function App() {
     remainingAllowance: "0",
     totalClaimed: "0",
   });
-  const [loading, setLoading] = useState(false);
+  // Track data loading state
+  const [dataLoading, setDataLoading] = useState(false);
+
+  const [loading, setLoading] = useState(false); // Transaction loading
   const [message, setMessage] = useState("");
   const [isPaused, setIsPaused] = useState(false);
 
-  useEffect(() => {
-    setupEvalInterface();
-    checkConnection();
-    setupWalletListeners(handleAccountsChanged, handleChainChanged);
-
-    return () => {
-      removeWalletListeners();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (account) {
-      loadData();
-      startPolling();
-    }
-  }, [account]);
-
-  const checkConnection = async () => {
-    const connectedAccount = await getConnectedAccount();
-    if (connectedAccount) {
-      setAccount(connectedAccount);
-    }
-  };
-
-  const handleAccountsChanged = (accounts) => {
+  // 1. Define handlers first using useCallback to stabilize them
+  const handleAccountsChanged = useCallback((accounts) => {
     if (accounts.length > 0) {
       setAccount(accounts[0]);
     } else {
       setAccount(null);
     }
-  };
+  }, []);
 
-  const handleChainChanged = () => {
+  const handleChainChanged = useCallback(() => {
     window.location.reload();
-  };
+  }, []);
 
-  const loadData = async () => {
+  const checkConnection = useCallback(async () => {
+    const connectedAccount = await getConnectedAccount();
+    if (connectedAccount) {
+      setAccount(connectedAccount);
+    }
+  }, []);
+
+  // 2. Define data loading logic
+  const loadData = useCallback(async () => {
+    if (!account) return;
+
+    setDataLoading(true);
     try {
       // Load token balance
       const tokenContract = await getTokenContract();
-      const balance = await tokenContract.balanceOf(account);
-      setBalance(balance.toString());
+      // Renamed variable to avoid "shadowing" warning
+      const fetchedBalance = await tokenContract.balanceOf(account);
+      setBalance(fetchedBalance.toString());
 
       // Load faucet status
       const faucetContract = await getFaucetContract();
@@ -89,16 +81,13 @@ function App() {
       }
     } catch (error) {
       console.error("Error loading data:", error);
-      setMessage(`Error: ${error.message}`);
+      setMessage(`Error loading data: ${error.message || "Check console"}`);
+    } finally {
+      setDataLoading(false);
     }
-  };
+  }, [account]); // Depends on account
 
-  const startPolling = () => {
-    // Refresh data every 30 seconds
-    const interval = setInterval(loadData, 30000);
-    return () => clearInterval(interval);
-  };
-
+  // 3. Define interactions
   const handleConnect = async () => {
     try {
       setLoading(true);
@@ -124,7 +113,7 @@ function App() {
       await tx.wait();
 
       setMessage("Tokens claimed successfully!");
-      await loadData(); // Refresh data
+      await loadData(); // Refresh data after claim
     } catch (error) {
       setMessage(`Claim failed: ${error.message}`);
     } finally {
@@ -132,8 +121,33 @@ function App() {
     }
   };
 
+  // 4. Effects
+  // Initial setup (run once)
+  useEffect(() => {
+    setupEvalInterface();
+    checkConnection();
+    setupWalletListeners(handleAccountsChanged, handleChainChanged);
+
+    return () => {
+      removeWalletListeners();
+    };
+  }, [checkConnection, handleAccountsChanged, handleChainChanged]);
+
+  // Polling data (runs when account changes)
+  useEffect(() => {
+    if (account) {
+      loadData();
+      // Poll every 30 seconds
+      const interval = setInterval(loadData, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [account, loadData]);
+
+  // Helper for UI
   const formatTimeRemaining = (timestamp) => {
-    if (timestamp === 0) return "Ready";
+    if (!timestamp) return "Loading...";
+    if (claimStatus.canClaim) return "Ready";
+    if (claimStatus.remainingAllowance === "0") return "Lifetime Limit Reached";
 
     const now = Math.floor(Date.now() / 1000);
     if (now >= timestamp) return "Ready";
@@ -169,7 +183,7 @@ function App() {
             <div className="wallet-info">
               <h3>Connected Wallet</h3>
               <p className="address">{account}</p>
-              <p className="balance">Balance: {formatBalance(balance)} FCT</p>
+              <p className="balance">Balance: {formatBalance(balance)} GFT</p>
             </div>
 
             <div className="faucet-info">
@@ -186,40 +200,51 @@ function App() {
                     <span
                       className={claimStatus.canClaim ? "success" : "error"}
                     >
-                      {claimStatus.canClaim ? "Yes" : "No"}
+                      {dataLoading
+                        ? "..."
+                        : claimStatus.canClaim
+                        ? "Yes"
+                        : "No"}
                     </span>
                   </div>
 
                   <div className="status-item">
                     <span>Next Claim In:</span>
                     <span>
-                      {formatTimeRemaining(claimStatus.nextClaimTime)}
+                      {dataLoading
+                        ? "Calculating..."
+                        : formatTimeRemaining(claimStatus.nextClaimTime)}
                     </span>
                   </div>
 
                   <div className="status-item">
                     <span>Remaining Allowance:</span>
                     <span>
-                      {formatBalance(claimStatus.remainingAllowance)} FCT
+                      {formatBalance(claimStatus.remainingAllowance)} GFT
                     </span>
                   </div>
 
                   <div className="status-item">
                     <span>Total Claimed:</span>
-                    <span>{formatBalance(claimStatus.totalClaimed)} FCT</span>
+                    <span>{formatBalance(claimStatus.totalClaimed)} GFT</span>
                   </div>
 
                   <button
                     onClick={handleClaim}
-                    disabled={!claimStatus.canClaim || loading || isPaused}
+                    disabled={
+                      !claimStatus.canClaim ||
+                      loading ||
+                      isPaused ||
+                      dataLoading
+                    }
                     className="claim-btn"
                   >
-                    {loading ? "Processing..." : "Claim 100 FCT"}
+                    {loading ? "Processing..." : "Claim 10 GFT"}
                   </button>
 
                   <p className="info">
-                    Each claim gives 100 FCT tokens. You can claim once every 24
-                    hours. Maximum lifetime claim: 1000 FCT.
+                    Each claim gives 10 GFT tokens. You can claim once every 24
+                    hours. Maximum lifetime claim: 100 GFT.
                   </p>
                 </>
               )}
@@ -230,7 +255,9 @@ function App() {
         {message && (
           <div
             className={`message ${
-              message.includes("Error") ? "error" : "success"
+              message.includes("Error") || message.includes("failed")
+                ? "error"
+                : "success"
             }`}
           >
             {message}
@@ -240,7 +267,7 @@ function App() {
 
       <footer>
         <p>Built for GPP Bonus Task 4 - Full-Stack ERC-20 Token Faucet DApp</p>
-        <p>Network: Sepolia | Token: FaucetToken (FCT)</p>
+        <p>Network: Sepolia | Token: GPP Faucet Token (GFT)</p>
       </footer>
     </div>
   );
