@@ -1,62 +1,62 @@
-import { ethers } from "ethers";
-import TOKEN_ABI from "../abis/Token.json";
-import FAUCET_ABI from "../abis/Faucet.json";
+import { connectWallet } from './wallet';
+import { getFaucetContract, getTokenContract } from './contracts';
 
 export const setupEvalInterface = () => {
   window.__EVAL__ = {
     connectWallet: async () => {
-      if (!window.ethereum) throw new Error("MetaMask not found");
-      const accounts = await window.ethereum.request({
-        method: "eth_requestAccounts",
-      });
-      return accounts[0];
+      try {
+        const address = await connectWallet();
+        return address;
+      } catch (error) {
+        throw new Error(`Wallet connection failed: ${error.message}`);
+      }
     },
+    
     requestTokens: async () => {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const faucet = new ethers.Contract(
-        import.meta.env.VITE_FAUCET_ADDRESS,
-        FAUCET_ABI,
-        signer
-      );
-      const tx = await faucet.requestTokens();
-      const receipt = await tx.wait();
-      return receipt.hash;
+      try {
+        const contract = await getFaucetContract(true);
+        const tx = await contract.requestTokens();
+        await tx.wait();
+        return tx.hash;
+      } catch (error) {
+        throw new Error(`Token request failed: ${error.message}`);
+      }
     },
+    
     getBalance: async (address) => {
-      const provider = new ethers.JsonRpcProvider(import.meta.env.VITE_RPC_URL);
-      const token = new ethers.Contract(
-        import.meta.env.VITE_TOKEN_ADDRESS,
-        TOKEN_ABI,
-        provider
-      );
-      const balance = await token.balanceOf(address);
-      return balance.toString();
+      try {
+        const contract = await getTokenContract();
+        const balance = await contract.balanceOf(address);
+        return balance.toString();
+      } catch (error) {
+        throw new Error(`Balance query failed: ${error.message}`);
+      }
     },
+    
     canClaim: async (address) => {
-      const provider = new ethers.JsonRpcProvider(import.meta.env.VITE_RPC_URL);
-      const faucet = new ethers.Contract(
-        import.meta.env.VITE_FAUCET_ADDRESS,
-        FAUCET_ABI,
-        provider
-      );
-      return await faucet.canClaim(address);
+      try {
+        const contract = await getFaucetContract();
+        return await contract.canClaim(address);
+      } catch (error) {
+        throw new Error(`Claim eligibility check failed: ${error.message}`);
+      }
     },
+    
     getRemainingAllowance: async (address) => {
-      const provider = new ethers.JsonRpcProvider(import.meta.env.VITE_RPC_URL);
-      const faucet = new ethers.Contract(
-        import.meta.env.VITE_FAUCET_ADDRESS,
-        FAUCET_ABI,
-        provider
-      );
-      const allowance = await faucet.remainingAllowance(address);
-      return allowance.toString();
+      try {
+        const contract = await getFaucetContract();
+        const allowance = await contract.remainingAllowance(address);
+        return allowance.toString();
+      } catch (error) {
+        throw new Error(`Allowance query failed: ${error.message}`);
+      }
     },
+    
     getContractAddresses: async () => {
       return {
         token: import.meta.env.VITE_TOKEN_ADDRESS,
-        faucet: import.meta.env.VITE_FAUCET_ADDRESS,
+        faucet: import.meta.env.VITE_FAUCET_ADDRESS
       };
-    },
+    }
   };
 };
