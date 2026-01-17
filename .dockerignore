@@ -1,0 +1,28 @@
+
+# Version Control
+.git
+.gitignore
+
+# Dependencies
+node_modules
+*/node_modules
+
+# Environment Variables
+.env
+.env.*
+
+# Build Artifacts
+artifacts
+cache
+coverage
+typechain
+typechain-types
+dist
+build
+.output
+
+# IDE / System
+.idea
+.vscode
+.DS_Store
+Thumbs.db

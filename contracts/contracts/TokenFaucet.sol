@@ -24,8 +24,12 @@ contract TokenFaucet is Ownable, ReentrancyGuard, Pausable {
     }
     
     function requestTokens() external whenNotPaused nonReentrant {
-        require(canClaim(msg.sender), "Cannot claim tokens");
-        require(remainingAllowance(msg.sender) >= CLAIM_AMOUNT, "Lifetime limit reached");
+        if (remainingAllowance(msg.sender) < CLAIM_AMOUNT) {
+            revert("Lifetime limit reached");
+        }
+        if (!canClaim(msg.sender)) {
+            revert("Cannot claim tokens");
+        }
         require(token.totalSupply() + CLAIM_AMOUNT <= token.MAX_SUPPLY(), "Faucet depleted");
         
         lastClaimAt[msg.sender] = block.timestamp;

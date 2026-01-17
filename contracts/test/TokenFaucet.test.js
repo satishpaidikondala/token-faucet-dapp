@@ -36,7 +36,7 @@ describe("TokenFaucet", function () {
     it("Should allow user to claim tokens", async function () {
       await expect(faucet.connect(user1).requestTokens())
         .to.emit(faucet, "TokensClaimed")
-        .withArgs(user1.address, 100n * 10n ** 18n, expect.any(BigInt));
+        .withArgs(user1.address, 100n * 10n ** 18n, (arg) => arg > 0n);
       
       expect(await token.balanceOf(user1.address)).to.equal(100n * 10n ** 18n);
       expect(await faucet.totalClaimed(user1.address)).to.equal(100n * 10n ** 18n);
