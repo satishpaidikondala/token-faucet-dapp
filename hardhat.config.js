@@ -1,6 +1,6 @@
 require("@nomicfoundation/hardhat-toolbox");
-require("dotenv").config();
 
+/** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: "0.8.20",
   networks: {
@@ -11,12 +11,6 @@ module.exports = {
     }
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY
-  },
-  paths: {
-    sources: "./contracts/contracts",
-    tests: "./contracts/test",
-    cache: "./contracts/cache",
-    artifacts: "./contracts/artifacts"
+    apiKey: process.env.ETHERSCAN_API_KEY || ""
   }
 };
