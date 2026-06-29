@@ -46,13 +46,13 @@ describe("TokenFaucet", function () {
       await faucet.connect(user1).requestTokens();
       
       await expect(faucet.connect(user1).requestTokens())
-        .to.be.revertedWith("Cannot claim tokens");
+        .to.be.revertedWith("Cooldown period not elapsed");
       
       // Fast forward 23 hours
       await time.increase(23 * 3600);
       
       await expect(faucet.connect(user1).requestTokens())
-        .to.be.revertedWith("Cannot claim tokens");
+        .to.be.revertedWith("Cooldown period not elapsed");
       
       // Fast forward 1 more hour
       await time.increase(3600);
@@ -76,7 +76,7 @@ describe("TokenFaucet", function () {
       
       // Try 11th claim (should fail)
       await expect(faucet.connect(user1).requestTokens())
-        .to.be.revertedWith("Lifetime limit reached");
+        .to.be.revertedWith("Lifetime claim limit reached");
     });
   });
   
@@ -89,7 +89,7 @@ describe("TokenFaucet", function () {
       expect(await faucet.paused()).to.be.true;
       
       await expect(faucet.connect(user1).requestTokens())
-        .to.be.revertedWithCustomError(faucet, "EnforcedPause");
+        .to.be.revertedWith("Faucet is paused");
       
       await expect(faucet.connect(owner).setPaused(false))
         .to.emit(faucet, "FaucetPaused")
