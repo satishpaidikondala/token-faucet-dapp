@@ -17,16 +17,13 @@ const FAUCET_ABI = [
   "function remainingAllowance(address) view returns (uint256)",
   "function lastClaimAt(address) view returns (uint256)",
   "function totalClaimed(address) view returns (uint256)",
-  "function paused() view returns (bool)", // <--- CHANGED from isPaused()
+  "function isPaused() view returns (bool)",
   "function getClaimStatus(address) view returns (bool, uint256, uint256)",
   "event TokensClaimed(address indexed user, uint256 amount, uint256 timestamp)",
   "event FaucetPaused(bool paused)"
 ];
 
 export const getProvider = () => {
-  if (window.ethereum) {
-    return new ethers.BrowserProvider(window.ethereum);
-  }
   return new ethers.JsonRpcProvider(import.meta.env.VITE_RPC_URL);
 };
 
