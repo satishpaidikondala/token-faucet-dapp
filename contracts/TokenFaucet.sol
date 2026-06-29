@@ -23,14 +23,22 @@ contract TokenFaucet is Ownable, ReentrancyGuard, Pausable {
         token = FaucetToken(tokenAddress);
     }
     
-    function requestTokens() external whenNotPaused nonReentrant {
+    function requestTokens() external nonReentrant {
+        if (paused()) {
+            revert("Faucet is paused");
+        }
+        if (totalClaimed[msg.sender] >= MAX_LIFETIME_CLAIM) {
+            revert("Lifetime claim limit reached");
+        }
         if (remainingAllowance(msg.sender) < CLAIM_AMOUNT) {
-            revert("Lifetime limit reached");
+            revert("Lifetime claim limit reached");
         }
-        if (!canClaim(msg.sender)) {
-            revert("Cannot claim tokens");
+        if (block.timestamp < lastClaimAt[msg.sender] + COOLDOWN_PERIOD) {
+            revert("Cooldown period not elapsed");
         }
-        require(token.totalSupply() + CLAIM_AMOUNT <= token.MAX_SUPPLY(), "Faucet depleted");
+        if (token.totalSupply() + CLAIM_AMOUNT > token.MAX_SUPPLY()) {
+            revert("Faucet has insufficient token balance");
+        }
         
         lastClaimAt[msg.sender] = block.timestamp;
         totalClaimed[msg.sender] += CLAIM_AMOUNT;
@@ -52,6 +60,10 @@ contract TokenFaucet is Ownable, ReentrancyGuard, Pausable {
             return 0;
         }
         return MAX_LIFETIME_CLAIM - totalClaimed[user];
+    }
+    
+    function isPaused() external view returns (bool) {
+        return paused();
     }
     
     function setPaused(bool _paused) external onlyOwner {
