@@ -71,7 +71,7 @@ function App() {
 
       // Load faucet status
       const faucetContract = await getFaucetContract();
-      const paused = await faucetContract.paused();
+      const paused = await faucetContract.isPaused();
       setIsPaused(paused);
 
       if (!paused) {
